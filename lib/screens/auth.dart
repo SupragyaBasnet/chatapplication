@@ -1,5 +1,7 @@
+import 'dart:ffi';
 import 'dart:io';
 import 'package:chatapplication/widgets/user_image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import "package:firebase_auth/firebase_auth.dart";
 final _firebase = FirebaseAuth.instance;
@@ -19,6 +21,7 @@ class _AuthScreenState extends State<AuthScreen> {
   var _enterEmail= "";
   var _enterPassword="";
   File? _selectedImage;
+  var _isAuthenticating = false;
 
   void _submit() async {
     final isValid = _form.currentState!.validate();
@@ -29,6 +32,9 @@ class _AuthScreenState extends State<AuthScreen> {
     _form.currentState!.save();
 
     try {
+      setState(() {
+        _isAuthenticating=true;
+      });
       if (_isLogin) {
         final userCredentials = await _firebase.signInWithEmailAndPassword(
             email: _enterEmail, password: _enterPassword);
@@ -36,6 +42,14 @@ class _AuthScreenState extends State<AuthScreen> {
       } else {
         final userCredentials = await _firebase.createUserWithEmailAndPassword(
             email: _enterEmail, password: _enterPassword);
+
+        final storageRef=FirebaseStorage.instance
+            .ref()
+            .child("user_images")
+            .child("${userCredentials.user!.uid}.jpg");
+        await storageRef.putFile(_selectedImage!);
+        final imageUrl=await storageRef.getDownloadURL();
+        print(imageUrl);
 
       }
     } on FirebaseAuthException catch (error){
@@ -47,6 +61,10 @@ class _AuthScreenState extends State<AuthScreen> {
             content: Text(error.message??"Authentication failed."),
         ),
         );
+        setState(() {
+          _isAuthenticating=false;
+
+        });
       }
 
       }
@@ -122,6 +140,9 @@ class _AuthScreenState extends State<AuthScreen> {
                             } ,
                           ),
                           const SizedBox(height:12),
+                          if (_isAuthenticating)
+                            const CircularProgressIndicator(),
+                          if (!_isAuthenticating)
                           ElevatedButton(
                             onPressed: _submit,
                               child: Text(_isLogin ? "Login" : "Signup"),
@@ -129,6 +150,7 @@ class _AuthScreenState extends State<AuthScreen> {
                               backgroundColor: Theme.of(context).colorScheme.primaryContainer,
                             ),
                           ),
+                          if(!_isAuthenticating)
                           TextButton(onPressed: (){
                             setState(() {
 
