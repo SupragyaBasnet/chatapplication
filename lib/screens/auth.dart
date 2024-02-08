@@ -1,6 +1,7 @@
-import 'dart:ffi';
+
 import 'dart:io';
 import 'package:chatapplication/widgets/user_image_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import "package:firebase_auth/firebase_auth.dart";
@@ -20,6 +21,7 @@ class _AuthScreenState extends State<AuthScreen> {
   var _isLogin=true;
   var _enterEmail= "";
   var _enterPassword="";
+  var _enterUsername="";
   File? _selectedImage;
   var _isAuthenticating = false;
 
@@ -49,7 +51,15 @@ class _AuthScreenState extends State<AuthScreen> {
             .child("${userCredentials.user!.uid}.jpg");
         await storageRef.putFile(_selectedImage!);
         final imageUrl=await storageRef.getDownloadURL();
-        print(imageUrl);
+
+        await FirebaseFirestore.instance
+            .collection("users")
+            .doc(userCredentials.user!.uid)
+            .set({
+          "username":_enterUsername,
+          "email" : _enterEmail,
+          "image_url": imageUrl,
+        });
 
       }
     } on FirebaseAuthException catch (error){
@@ -120,6 +130,24 @@ class _AuthScreenState extends State<AuthScreen> {
                               _enterEmail=value!;
 
                             } ,
+                          ),
+                          if (!_isLogin)
+
+                          TextFormField(
+                            decoration:
+                                const InputDecoration(labelText: "Username"),
+                            enableSuggestions: false,
+                            validator: (value){
+                              if (value == null || value.isEmpty || value.trim().length<4){
+                                return "Please enter at least 4 characters.";
+                              }
+                              return null;
+                              },
+                              onSaved: (value){
+                                _enterUsername= value!;
+
+
+                              },
                           ),
                           TextFormField(
                             decoration: const InputDecoration(
